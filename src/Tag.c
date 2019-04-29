@@ -787,10 +787,11 @@ ErrorCode *start_ble_scanning(void *param){
                         
                         }else if(0 == strncmp(uuid, lbeacon_uuid,
                                                   LENGTH_OF_UUID)){
+							/*						  
                             zlog_debug(category_debug,
                                        "Same  %s, uuid=[%s], rssi=%d",
                                        address, lbeacon_uuid, rssi);
-								
+							*/	
                             count = 0;
 
                         }else{
