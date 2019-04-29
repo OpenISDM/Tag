@@ -177,7 +177,7 @@ ErrorCode enable_advertising(int dongle_device_id,
 #ifdef Debugging
     zlog_info(category_debug, "Using dongle id [%d] uuid [%s]\n", dongle_device_id, advertising_uuid);
 #endif
-    dongle_device_id = hci_get_route(NULL);
+    //dongle_device_id = hci_get_route(NULL);
     if (dongle_device_id < 0){
         zlog_error(category_health_report,
                    "Error openning the device");
@@ -467,7 +467,7 @@ ErrorCode disable_advertising(int dongle_device_id) {
 #endif
     /* Open Bluetooth device */
     retry_time = DONGLE_GET_RETRY;
-    dongle_device_id = hci_get_route(NULL);
+    //dongle_device_id = hci_get_route(NULL);
     if (dongle_device_id < 0) {
         zlog_error(category_health_report,
                    "Error openning the device");
