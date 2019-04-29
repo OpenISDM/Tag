@@ -121,6 +121,9 @@ to determine whether to cleanup all lists. */
 /* Number of characters in the name of a Bluetooth device */
 #define LENGTH_OF_DEVICE_NAME 30
 
+/* Number of characters in the uuid of a Bluetooth device */
+#define LENGTH_OF_UUID 33
+
 /* Number of characters in a Bluetooth MAC address */
 #define LENGTH_OF_MAC_ADDRESS 18
 

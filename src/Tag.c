@@ -641,7 +641,7 @@ ErrorCode *start_ble_scanning(void *param){
     int rssi;
 
     int count;
-    char uuid[40];
+    char uuid[LENGTH_OF_UUID];
 
 #ifdef Debugging
     zlog_debug(category_debug, ">> start_ble_scanning... ");
@@ -787,31 +787,31 @@ ErrorCode *start_ble_scanning(void *param){
                                        sizeof(uuid) - 1);
 
                         if(0 == strncmp(uuid, "000000", 6)){
-                                if(strlen(lbeacon_uuid) == 0){
+                            if(strlen(lbeacon_uuid) == 0){
 
+                                memcpy(lbeacon_uuid, uuid, LENGTH_OF_UUID);
+                                zlog_debug(category_debug,
+                                           "Set  %s, uuid=[%s], rssi=%d",
+                                           address, lbeacon_uuid, rssi);
+                                is_uuid_changed = 1;
+                                count = 0;
+                                break;
+                            }else if(0 == strncmp(uuid, lbeacon_uuid,
+                                              LENGTH_OF_UUID)){
+                                count = 0;
+                            }else{
+                                count++;
+                                if(count > g_config.change_lbeacon_criteria){
                                     memcpy(lbeacon_uuid, uuid, 32);
                                     zlog_debug(category_debug,
-                                              "Set  %s, uuid=[%s], rssi=%d",
-                                              address, lbeacon_uuid, rssi);
+                                               "Change  %s, uuid=[%s], rssi=%d",
+                                               address, lbeacon_uuid, rssi);
                                     is_uuid_changed = 1;
                                     count = 0;
                                     break;
-
-                                }else if(0 == strncmp(uuid, lbeacon_uuid, 32)){
-                                    count = 0;
-                                }else{
-                                    count++;
-                                    if(count > g_config.change_lbeacon_criteria){
-                                        memcpy(lbeacon_uuid, uuid, 32);
-                                        zlog_debug(category_debug,
-                                                  "Change  %s, uuid=[%s], rssi=%d",
-                                                  address, lbeacon_uuid, rssi);
-                                        is_uuid_changed = 1;
-                                        count = 0;
-                                        break;
-                                    }
                                 }
-                          }
+                            }
+                        }
                     }
                 }
             }
@@ -858,10 +858,6 @@ ErrorCode *start_ble_scanning(void *param){
 int main(int argc, char **argv) {
     ErrorCode return_value = WORK_SUCCESSFULLY;
     struct sigaction sigint_handler;
-    pthread_t br_scanning_thread;
-    pthread_t ble_scanning_thread;
-    pthread_t timer_thread;
-    int id = 0;
 
     /*Initialize the global flag */
     ready_to_work = true;
