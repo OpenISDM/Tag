@@ -32,8 +32,8 @@ Authors:
 
 */
 
-#ifndef LBEACON_H
-#define LBEACON_H
+#ifndef TAG_H
+#define TAG_H
 
 /*
 * INCLUDES
@@ -57,34 +57,17 @@ Authors:
 */
 //#define cmd_opcode_pack(ogf, ocf) (uint16_t)((ocf &amp; 0x03ff) | \
 //                                                        (ogf &lt;&lt; 10))
-/* File path of the config file of the LBeacon */
-#define CONFIG_FILE_NAME "/home/pi/LBeacon/config/config.conf"
+/* File path of the config file of the Tag */
+#define CONFIG_FILE_NAME "/home/pi/Tag/config/config.conf"
 
 /* File path of the logging file*/
-#define LOG_FILE_NAME "/home/pi/LBeacon/config/zlog.conf"
+#define LOG_FILE_NAME "/home/pi/Tag/config/zlog.conf"
 
 /* The category defined of log file used for health report */
 #define LOG_CATEGORY_HEALTH_REPORT "Health_Report"
 
 /* The category defined for the printf during debugging */
-#define LOG_CATEGORY_DEBUG "LBeacon_Debug"
-
-/* The temporary file for uploading tracked BR data */
-#define TRACKED_BR_TXT_FILE_NAME "tracked_br_txt.txt"
-
-/* The temporary file for uploading tracked BLE data */
-#define TRACKED_BLE_TXT_FILE_NAME "tracked_ble_txt.txt"
-
-/* The log file for LBeacon health history */
-#define HEALTH_REPORT_LOG_FILE_NAME "/home/pi/LBeacon/log/Health_Report.log"
-
-/* The term used by zlog libarry to indicate error category. We will report
-LBeacon's health report as errors, if we find this term in the last line of
-Health_Report.log. */
-#define HEALTH_REPORT_ERROR_SIGN "ERROR"
-
-/* The lock file for LBeacon  */
-#define LBEACON_LOCK_FILE "/home/pi/LBeacon/bin/LBeacon.pid"
+#define LOG_CATEGORY_DEBUG "Tag_Debug"
 
 /* The lock file for Tag  */
 #define TAG_LOCK_FILE "/home/pi/Tag/bin/Tag.pid"
