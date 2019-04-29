@@ -731,11 +731,6 @@ ErrorCode *start_ble_scanning(void *param){
             return E_SCAN_SET_EVENT_MASK;
         }
 
-        le_set_scan_enable_cp scan_cp;
-        memset(&scan_cp, 0, sizeof(scan_cp));
-        scan_cp.enable      = 0x01; // Enable flag.
-        scan_cp.filter_dup  = 0x00; // Filtering disabled.
-
         hci_filter_clear(&new_filter);
         hci_filter_set_ptype(HCI_EVENT_PKT, &new_filter);
         hci_filter_set_event(EVT_LE_META_EVENT, &new_filter);
@@ -785,12 +780,14 @@ ErrorCode *start_ble_scanning(void *param){
                                            address, lbeacon_uuid, rssi);
                                 is_uuid_changed = 1;
                                 count = 0;
+								break;
                         
                             }else if(0 == strncmp(uuid, lbeacon_uuid,
                                                   LENGTH_OF_UUID)){
-                                zlog_debug(category_debug,
+                                /*zlog_debug(category_debug,
                                            "Same  %s, uuid=[%s], rssi=%d",
                                            address, lbeacon_uuid, rssi);
+								*/
                                 count = 0;
 
                             }else{
@@ -802,12 +799,14 @@ ErrorCode *start_ble_scanning(void *param){
                                                address, lbeacon_uuid, rssi);
                                     is_uuid_changed = 1;
                                     count = 0;
+									break;
                                 }
                             }
                         }
                     }
                 }
             }
+			
             break;
         } // end while (HCI_EVENT_HDR_SIZE)
 
