@@ -149,7 +149,7 @@ ErrorCode get_config(Config *config, char *file_name) {
     config_message = strstr((char *)config_setting, DELIMITER);
     config_message = config_message + strlen(DELIMITER);
     trim_string_tail(config_message);
-    config->change_lbeacon_criteria = atoi(config_message);
+    config->scan_timeout = atoi(config_message);
 
     fclose(file);
 
@@ -640,12 +640,15 @@ ErrorCode *start_ble_scanning(void *param){
     uint16_t interval = htobs(0x0010); /* 16*0.625ms = 10ms */
     uint16_t window = htobs(0x0010); /* 16*0.625ms = 10ms */
     int i=0;
-	char address[LENGTH_OF_MAC_ADDRESS];        
+    char address[LENGTH_OF_MAC_ADDRESS];        
     char name[LENGTH_OF_DEVICE_NAME];
     int rssi;
 
-    int count = 0;
     char uuid[LENGTH_OF_UUID];
+
+    int time_start = get_system_time();
+    memset(LBeacon, 0, sizeof(LBeacon));
+    index_LBeacon = -1;
 
 #ifdef Debugging
     zlog_debug(category_debug, ">> start_ble_scanning... ");
@@ -755,8 +758,8 @@ ErrorCode *start_ble_scanning(void *param){
                 (ble_buffer + HCI_EVENT_HDR_SIZE + 1);
 
             if(EVT_LE_ADVERTISING_REPORT != meta->subevent){
-				   continue;
-			}
+                continue;
+            }
 			
             info = (le_advertising_info *)(meta->data + 1);
 
@@ -766,7 +769,7 @@ ErrorCode *start_ble_scanning(void *param){
                 ba2str(&info->bdaddr, address);
                 strcat(address, "\0");
                 
-				memset(uuid, 0, sizeof(uuid));
+                memset(uuid, 0, sizeof(uuid));
 
                 if(0 != strncmp(address, "C1:", 3) && 
                    WORK_SUCCESSFULLY == eir_parse_uuid(info->data,
@@ -774,40 +777,56 @@ ErrorCode *start_ble_scanning(void *param){
                                                        uuid,
                                                        sizeof(uuid) - 1)){
                     if(0 == strncmp(uuid, "000000", 6)){
-
-                        if(strlen(lbeacon_uuid) == 0){
-
-                            memcpy(lbeacon_uuid, uuid, LENGTH_OF_UUID);
-                            zlog_debug(category_debug,
-                                       "Set  %s, uuid=[%s], rssi=%d",
-                                       address, lbeacon_uuid, rssi);
-                            is_uuid_changed = 1;
-                            count = 0;
-                            break;
-                        
-                        }else if(0 == strncmp(uuid, lbeacon_uuid,
-                                                  LENGTH_OF_UUID)){
-							/*						  
-                            zlog_debug(category_debug,
-                                       "Same  %s, uuid=[%s], rssi=%d",
-                                       address, lbeacon_uuid, rssi);
-							*/	
-                            count = 0;
-
-                        }else{
-                            count++;
-                            if(count > g_config.change_lbeacon_criteria){
-                                memcpy(lbeacon_uuid, uuid, 32);
-                                zlog_debug(category_debug,
-                                           "Change  %s, uuid=[%s], rssi=%d",
-                                           address, lbeacon_uuid, rssi);
-                                is_uuid_changed = 1;
-                                count = 0;
-                                break;
+                        zlog_debug(category_debug,
+                                   "Detected LBeacon  %s, uuid=[%s], rssi=%d",
+                                   address, uuid, rssi);
+		     
+                        int found_index = -1;
+                        for(int i = 0 ; i <= index_LBeacon ; i++){
+                            if(0 == strncmp(LBeacon[i].uuid, uuid, LENGTH_OF_UUID)){
+                                found_index = i;
+                                LBeacon[i].avg_rssi = 
+                                    (LBeacon[i].avg_rssi * LBeacon[i].count + rssi)/
+                                    (LBeacon[i].count + 1);
+                                LBeacon[i].count++;
                             }
+                        }
+
+                        if(found_index == -1){
+                            index_LBeacon++;
+                            memcpy(LBeacon[index_LBeacon].uuid, uuid, LENGTH_OF_UUID);
+                            LBeacon[index_LBeacon].avg_rssi = rssi;
+                            LBeacon[index_LBeacon].count = 1;
+                        }	
+
+                        if(get_system_time() - time_start > g_config.scan_timeout){
+                            int best_rssi = -100;
+                            int best_index = -1;
+                            for(int i = 0 ; i <= index_LBeacon ; i++){
+                                if(LBeacon[i].avg_rssi > best_rssi){
+                                    best_rssi = LBeacon[i].avg_rssi;
+                                    best_index = i;
+                                }
+                                zlog_debug(category_debug,
+                                           "Scan timeout:  index=[%d], lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
+                                           i, LBeacon[i].uuid, LBeacon[i].avg_rssi, LBeacon[i].count);
+                                 
+                            }
+                            if(0 != strncmp(LBeacon[best_index].uuid, lbeacon_uuid, LENGTH_OF_UUID)){
+                                memcpy(lbeacon_uuid, LBeacon[best_index].uuid, LENGTH_OF_UUID);
+                                is_uuid_changed = 1;
+                                zlog_debug(category_debug,
+                                           "Change  lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
+                                           lbeacon_uuid, LBeacon[best_index].avg_rssi, LBeacon[best_index].count);
+                                break; 
+                            }
+                            time_start = get_system_time();
+                            memset(LBeacon, 0, sizeof(LBeacon));
+                            index_LBeacon = -1;
                         }
                     }
                 }
+
             }
         } // end while (HCI_EVENT_HDR_SIZE)
 
@@ -823,12 +842,7 @@ ErrorCode *start_ble_scanning(void *param){
         }
 
         hci_close_dev(socket);
-/*
-#ifdef Debugging
-        zlog_debug(category_debug,
-                   "Scanning done of BLE devices");
-#endif
-*/
+        
         if(is_uuid_changed){
             break;
         }

@@ -151,32 +151,18 @@ to gateway via wifi network link.*/
 /*
   TYPEDEF STRUCTS
 */
+typedef struct LBeacon_data {
+   char uuid[LENGTH_OF_UUID];
+   int avg_rssi;
+   int count; 
+} LBeacon_data;
 
+LBeacon_data LBeacon[10];
+int index_LBeacon = -1;
 
 /* The configuration file structure */
 
 typedef struct Config {
-
-    /* String representation of the X coordinate of the beacon location */
-    char coordinate_X[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the Y coordinate of the beacon location */
-    char coordinate_Y[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the Z coordinate of the beacon location */
-    char coordinate_Z[CONFIG_BUFFER_SIZE];
-
-    /* The expected lowest basement under ground in the world. This constant
-    will be added to Z-coordinate (level information) gotten from input
-    configuration file. This adjustment helps us to have positive number in the
-    config data structure and lets Z-coordinate occupy only 2 bytes in UUID.
-    */
-    int lowest_basement_level;
-
-    /* String representation of the universally unique identifer */
-    char uuid[CONFIG_BUFFER_SIZE];
-
-    /* The dongle used to advertise */
     int advertise_dongle_id;
 
     /* The rssi value used to advertise */
@@ -185,52 +171,10 @@ typedef struct Config {
     /* The required signal strength */
     int scan_rssi_coverage;
 
-    int change_lbeacon_criteria;
+    int scan_timeout;
 
-    /* The IPv4 network address of the gateway */
-    char gateway_addr[NETWORK_ADDR_LENGTH];
-
-    /* The UDP port of gateway connection*/
-    int gateway_port;
-
-    /* The UDP port for LBeacon to listen and receive UDP from gateway*/
-    int local_client_port;
-
-#ifdef Bluetooth_classic
-    /* String representation of the message file name */
-    char file_name[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the path  name of message file */
-    char file_path[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the maximum number of devices to be
-    handled by all push dongles
-    */
-    char maximum_number_of_devices[CONFIG_BUFFER_SIZE];
-
-    /* String representation of number of message groups */
-    char number_of_groups[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the number of messages */
-    char number_of_messages[CONFIG_BUFFER_SIZE];
-
-    /* String representation of the number of push dongles */
-    char number_of_push_dongles[CONFIG_BUFFER_SIZE];
-
-#endif
 
 } Config;
-
-/* The structure for storing information and status of a thread */
-typedef struct ThreadStatus {
-
-    char scanned_mac_address[LENGTH_OF_MAC_ADDRESS];
-    bool idle;
-    bool is_waiting_to_send;
-
-} ThreadStatus;
-
-
 
 
 
@@ -260,17 +204,7 @@ Config g_config;
 char lbeacon_uuid[40];
 
 int is_uuid_changed;
-int prevent_bounce_count;
-
-#ifdef Bluetooth_classic
-
-/* Path of the object push file */
-char *g_push_file_path;
-
-/* An array of struct for storing information and status of threads */
-ThreadStatus g_idle_handler[MAX_NUM_OBJECTS];
-
-#endif
+//int prevent_bounce_count;
 
 /*
   FUNCTIONS
@@ -329,40 +263,6 @@ ErrorCode generate_uuid(Config *config);
 */
 
 ErrorCode get_config(Config *config, char *file_name);
-
-/*
-  send_to_push_dongle:
-
-      When called, this functions first checks whether there is a
-      ScannedDevice struct in the scanned list or ble_object_list with MAC
-      address matching the input bluetooth device address depending on
-      whether the device is a BR/EDR type or BLE type. If there is no such
-      struct, this function allocates from memory pool space for a
-      ScannedDeivce struct, sets the MAC address of the new struct to the
-      input MAC address, the initial scanned time and final scanned time to
-      the current time, and inserts the sruct at the head of the scanned_list
-      if the device is of BR/EDR type, and tail of the tracked object list
-      for the device type. If a struct with MAC address matching the input
-      device address is found, this function sets the final scanned time of
-      the struct to current time.
-
-  Parameters:
-
-      bluetooth_device_address - MAC address of a bluetooth device discovered
-                                 during inquiry
-      device_type - the indicator to show the device type of the input address
-      name - the name of the BR_EDR / BLE devices
-      rssi - the RSSI value of this device
-
-  Return value:
-
-      None
-*/
-
-void send_to_push_dongle(bdaddr_t *bluetooth_device_address,
-                         DeviceType device_type,
-                         char* name,
-                         int rssi);
 
 /*
   enable_advertising:
@@ -631,107 +531,5 @@ extern int hci_write_inquiry_mode(int dd, uint8_t mode, int to);
 extern int  hci_send_cmd(int dd, uint16_t ogf, uint16_t ocf, uint8_t plen,
     void *param);
 
-/* Functions for communication via BR/EDR path to Bluetooth
-   classic devices */
-#ifdef Bluetooth_classic
-
-/*
-  obexftp_open:
-
-      This function is called to create an obexftp client.
-
-  Parameters:
-
-      transport - the transport protocol that will be used
-      ctrans - optional custom transport protocol
-      infocb - optional info callback
-      infocb_data - optional info callback data
-
-  Return value:
-
-      cli - a new allocated ObexFTP client instance, or NULL on error.
-*/
-
-extern obexftp_client_t * obexftp_open(int transport,
-                                       obex_ctrans_t *ctrans,
-                                       obexftp_info_cb_t infocb,
-                                       void *infocb_data);
-
-/*
-  xbee_send_data:
-
-      When called, this function sends a packet containing the specified
-      message to the gateway via xbee module.
-
-  Parameters:
-
-    message - the message to be sent via xbee module
-
-  Return value:
-
-      None
-
-*/
-
-extern void *xbee_send_data(char *message);
-
-/*
-  choose_file:
-
-    This function receives the name of a message file and returns the file
-    path where the message is located. It goes through each directory in the
-    messages folder and in each category, reads each file name to find
-    the designated message to be broadcast to the users under the beacon.
-
-  Parameters:
-
-    message_to_send - name of the message file we want to retrieve
-
-  Return value:
-
-    return_value - message file path
-*/
-
-char *choose_file(char *message_to_send);
-
-/*
-  send_file:
-
-    This function pushes a message asynchronously to devices. It is the
-    thread function of the specified thread.
-
-    [N.B. The beacon may still be scanning for other bluetooth devices.]
-
-  Parameters:
-
-    id - ID of the thread used to send the push message
-
-  Return value:
-
-    None
-*/
-
-void *send_file(void *id);
-
-/*
-  start_classic_pushing:
-
-    This function creates threads per devices to push the data or file to
-    the scanned classic Bluetooth devices via BR/EDR path.
-
-    [N.B. The code in this function was orignally put in the main function]
-
-  Parameters:
-
-    None
-
-  Return value:
-
-    None
-*/
-
-void start_classic_pushing(void);
-
-#endif // Bluetooth_classic
 
 #endif
