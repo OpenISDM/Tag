@@ -571,7 +571,7 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
                            size_t buf_len){
     size_t offset;
     uint8_t field_len;
-    size_t name_len;
+    size_t uuid_len;
     int index;
     int i;
 
@@ -589,18 +589,17 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
 
         switch (eir[1]) {
             case EIR_MANUFACTURE_SPECIFIC_DATA:
-                name_len = field_len - 1;
+                uuid_len = field_len - 1;
 /*
                 printf("parse result:\n");
-                for(int i = 0 ; i < name_len ; i++)
+                for(int i = 0 ; i < uuid_len ; i++)
                    printf("%d\n", eir[2+i]);
 */
-                if (name_len > buf_len)
+                if (uuid_len > buf_len)
                        goto failed;
 
                 // Ensure the Beacon is our LBeacon
                 if(eir[2] == 15 && eir[3] == 0 && eir[4] == 2 && eir[5] == 21){
-                    memset(buf, 0, buf_len);
                     index = 0;
                     for(i = 4 ; i < 20 ; i++)
                     {
