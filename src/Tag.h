@@ -89,34 +89,11 @@ https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile
    Data */
 #define EIR_MANUFACTURE_SPECIFIC_DATA 0xFF
 
-
-/* Maximum number of characters in message file name */
-#define FILE_NAME_BUFFER 64
-
 /* Timeout in milliseconds of hci_send_req funtion */
 #define HCI_SEND_REQUEST_TIMEOUT_IN_MS 1000
 
 /* Time interval in milliseconds between advertising by a LBeacon */
 #define INTERVAL_ADVERTISING_IN_MS 500
-
-/* Time interval in seconds for cleaning up scanned list. The decision is
-made by check_is_in_list. When the function checks for duplicated devices
-in the scanned list, it will remove the timed out devices as well.
-*/
-#define INTERVAL_FOR_CLEANUP_SCANNED_LIST_IN_SEC 600
-
-/* Time interval in seconds for idle status in Wifi connection between
-LBeacon and gateway. Usually, the Wifi connection being idle for longer than
-the specified time interval is impossible in BeDIS Object tracker solution. So
-we treat the condition as network connection failure scenario. When this
-happens, LBeacon sends UDP join_request to gateway again to receive gateway's
-packets and notifies timeout_cleanup thread to do the cleanup task.
-*/
-#define INTERVAL_RECEIVE_MESSAGE_FROM_GATEWAY_IN_SEC 180
-
-/* Mempool usage threshold for cleaning up all lists. This threshold is used
-to determine whether to cleanup all lists. */
-#define MEMPOOL_USAGE_THRESHOLD 0.70
 
 /* Number of characters in the name of a Bluetooth device */
 #define LENGTH_OF_DEVICE_NAME 30
@@ -127,34 +104,13 @@ to determine whether to cleanup all lists. */
 /* Number of characters in a Bluetooth MAC address */
 #define LENGTH_OF_MAC_ADDRESS 18
 
-/* Number of digits of MAC address to compare */
-#define NUM_DIGITS_TO_COMPARE 4
-
-/* Number of worker threads in the thread pool used by communication unit */
-#define NUM_WORK_THREADS 16
-
-/* Maximum length in number of bytes of basic info of each response from
-LBeacon to gateway.
-*/
-#define MAX_LENGTH_RESP_BASIC_INFO 128
-
-/* Maximum length in number of bytes of device information of each response
-to gateway via wifi network link.*/
-#define MAX_LENGTH_RESP_DEVICE_INFO 50
-
-/* The macro of comparing two integer for minimum */
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
-
 /*
   TYPEDEF STRUCTS
 */
 typedef struct LBeacon_data {
    char uuid[LENGTH_OF_UUID];
    int avg_rssi;
-   int count; 
+   int count;
 } LBeacon_data;
 
 LBeacon_data LBeacon[10];
@@ -171,8 +127,8 @@ typedef struct Config {
     /* The required signal strength */
     int scan_rssi_coverage;
 
+    /* The time window */
     int scan_timeout;
-
 
 } Config;
 
@@ -337,9 +293,9 @@ const struct hci_request ble_hci_request(uint16_t ocf,
                                          void * cparam);
 
 /*
-  eir_parse_name:
+  eir_parse_uuid:
 
-      This function parses the name from bluetooth BLE device
+      This function parses the uuid from bluetooth BLE device
 
   Parameters:
 
@@ -356,9 +312,9 @@ const struct hci_request ble_hci_request(uint16_t ocf,
 */
 
 static ErrorCode eir_parse_uuid(uint8_t *eir,
-                           size_t eir_len,
-                           char *buf,
-                           size_t buf_len);
+                                size_t eir_len,
+                                char *buf,
+                                size_t buf_len);
 
 /*
   start_ble_scanning:
@@ -529,7 +485,6 @@ extern int hci_write_inquiry_mode(int dd, uint8_t mode, int to);
 */
 
 extern int  hci_send_cmd(int dd, uint16_t ogf, uint16_t ocf, uint8_t plen,
-    void *param);
-
+                         void *param);
 
 #endif

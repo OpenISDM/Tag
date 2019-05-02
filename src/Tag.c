@@ -570,12 +570,15 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
                            char *buf,
                            size_t buf_len){
     size_t offset;
+    uint8_t field_len;
+    size_t name_len;
+    int index;
+    int i;
 
     offset = 0;
 
     while (offset < eir_len) {
-        uint8_t field_len = eir[0];
-        size_t name_len;
+        field_len = eir[0];
 
         /* Check for the end of EIR */
         if (field_len == 0)
@@ -591,22 +594,21 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
                 printf("parse result:\n");
                 for(int i = 0 ; i < name_len ; i++)
                    printf("%d\n", eir[2+i]);
-  */              
+*/
                 if (name_len > buf_len)
                        goto failed;
-                
+
                 // Ensure the Beacon is our LBeacon
                 if(eir[2] == 15 && eir[3] == 0 && eir[4] == 2 && eir[5] == 21){
-                
                     memset(buf, 0, buf_len);
-                    int count = 0;
-                    for(int i = 4 ; i < 20 ; i++)
+                    index = 0;
+                    for(i = 4 ; i < 20 ; i++)
                     {
-                        buf[count] = eir[2+i] / 16 + '0';
-                        buf[count+1] = eir[2+i] % 16 + '0';
-                        count=count+2;
+                        buf[index] = eir[2+i] / 16 + '0';
+                        buf[index+1] = eir[2+i] % 16 + '0';
+                        index=index+2;
                     }
-                    buf[count] = '\0';
+                    buf[index] = '\0';
                     return WORK_SUCCESSFULLY;
                 }
         }
@@ -628,7 +630,7 @@ ErrorCode *start_ble_scanning(void *param){
     uint8_t ble_buffer[HCI_MAX_EVENT_SIZE];
     int socket = 0; /* socket number */
     int dongle_device_id = 0; /* dongle id */
-    int ret, opt, status, len;
+    int ret, status;
     struct hci_filter new_filter; /* Filter for controlling the events*/
     evt_le_meta_event *meta;
     le_advertising_info *info;
@@ -640,13 +642,12 @@ ErrorCode *start_ble_scanning(void *param){
     uint16_t interval = htobs(0x0010); /* 16*0.625ms = 10ms */
     uint16_t window = htobs(0x0010); /* 16*0.625ms = 10ms */
     int i=0;
-    char address[LENGTH_OF_MAC_ADDRESS];        
+    char address[LENGTH_OF_MAC_ADDRESS];
     char name[LENGTH_OF_DEVICE_NAME];
     int rssi;
-
     char uuid[LENGTH_OF_UUID];
-
     int time_start = get_system_time();
+
     memset(LBeacon, 0, sizeof(LBeacon));
     index_LBeacon = -1;
 
@@ -760,7 +761,7 @@ ErrorCode *start_ble_scanning(void *param){
             if(EVT_LE_ADVERTISING_REPORT != meta->subevent){
                 continue;
             }
-			
+
             info = (le_advertising_info *)(meta->data + 1);
 
             rssi = (signed char)info->data[info->length];
@@ -768,25 +769,28 @@ ErrorCode *start_ble_scanning(void *param){
             if(rssi > g_config.scan_rssi_coverage){
                 ba2str(&info->bdaddr, address);
                 strcat(address, "\0");
-                
+
                 memset(uuid, 0, sizeof(uuid));
 
-                if(0 != strncmp(address, "C1:", 3) && 
+                if(0 != strncmp(address, "C1:", 3) &&
                    WORK_SUCCESSFULLY == eir_parse_uuid(info->data,
                                                        info->length,
                                                        uuid,
                                                        sizeof(uuid) - 1)){
                     if(0 == strncmp(uuid, "000000", 6)){
+#ifdef Debugging
                         zlog_debug(category_debug,
                                    "Detected LBeacon  %s, uuid=[%s], rssi=%d",
                                    address, uuid, rssi);
-		     
+#endif
                         int found_index = -1;
                         for(int i = 0 ; i <= index_LBeacon ; i++){
-                            if(0 == strncmp(LBeacon[i].uuid, uuid, LENGTH_OF_UUID)){
+                            if(0 == strncmp(LBeacon[i].uuid, uuid,
+                                            LENGTH_OF_UUID)){
                                 found_index = i;
-                                LBeacon[i].avg_rssi = 
-                                    (LBeacon[i].avg_rssi * LBeacon[i].count + rssi)/
+                                LBeacon[i].avg_rssi =
+                                    (LBeacon[i].avg_rssi *
+                                     LBeacon[i].count + rssi) /
                                     (LBeacon[i].count + 1);
                                 LBeacon[i].count++;
                             }
@@ -794,12 +798,15 @@ ErrorCode *start_ble_scanning(void *param){
 
                         if(found_index == -1){
                             index_LBeacon++;
-                            memcpy(LBeacon[index_LBeacon].uuid, uuid, LENGTH_OF_UUID);
+                            memcpy(LBeacon[index_LBeacon].uuid, uuid,
+                                   LENGTH_OF_UUID);
                             LBeacon[index_LBeacon].avg_rssi = rssi;
                             LBeacon[index_LBeacon].count = 1;
-                        }	
+                        }
 
-                        if(get_system_time() - time_start > g_config.scan_timeout){
+                        if(get_system_time() - time_start >
+                           g_config.scan_timeout){
+
                             int best_rssi = -100;
                             int best_index = -1;
                             for(int i = 0 ; i <= index_LBeacon ; i++){
@@ -807,18 +814,31 @@ ErrorCode *start_ble_scanning(void *param){
                                     best_rssi = LBeacon[i].avg_rssi;
                                     best_index = i;
                                 }
+#ifdef Debugging
                                 zlog_debug(category_debug,
-                                           "Scan timeout:  index=[%d], lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
-                                           i, LBeacon[i].uuid, LBeacon[i].avg_rssi, LBeacon[i].count);
-                                 
+                                           "Scan timeout:  index=[%d], " \
+                                           "lbeacon_uuid=[%s], avg_rssi=%d, " \
+                                           "count=%d",
+                                           i, LBeacon[i].uuid,
+                                           LBeacon[i].avg_rssi,
+                                           LBeacon[i].count);
+#endif
                             }
-                            if(0 != strncmp(LBeacon[best_index].uuid, lbeacon_uuid, LENGTH_OF_UUID)){
-                                memcpy(lbeacon_uuid, LBeacon[best_index].uuid, LENGTH_OF_UUID);
+                            if(0 != strncmp(LBeacon[best_index].uuid,
+                                            lbeacon_uuid,
+                                            LENGTH_OF_UUID)){
+                                memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
+                                       LENGTH_OF_UUID);
                                 is_uuid_changed = 1;
+#ifdef Debugging
                                 zlog_debug(category_debug,
-                                           "Change  lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
-                                           lbeacon_uuid, LBeacon[best_index].avg_rssi, LBeacon[best_index].count);
-                                break; 
+                                           "Change  lbeacon_uuid=[%s], " \
+                                           "avg_rssi=%d, count=%d",
+                                           lbeacon_uuid,
+                                           LBeacon[best_index].avg_rssi,
+                                           LBeacon[best_index].count);
+#endif
+                                break;
                             }
                             time_start = get_system_time();
                             memset(LBeacon, 0, sizeof(LBeacon));
@@ -842,7 +862,7 @@ ErrorCode *start_ble_scanning(void *param){
         }
 
         hci_close_dev(socket);
-        
+
         if(is_uuid_changed){
             break;
         }
@@ -928,7 +948,7 @@ int main(int argc, char **argv) {
     }
 
     memset(lbeacon_uuid, 0, sizeof(lbeacon_uuid));
-   
+
      while(true == ready_to_work){
         is_uuid_changed = 0;
 
