@@ -20,7 +20,7 @@ fi
 cd /home/pi/Tag/bin/
 chmod 755 /home/pi/Tag/bin/change_mac.sh
 /home/pi/Tag/bin/change_mac.sh
-sleep 3
+sleep 1
 chmod 755 /home/pi/Tag/bin/auto_tag.sh
 /home/pi/Tag/bin/auto_tag.sh
 
