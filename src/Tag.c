@@ -655,9 +655,13 @@ ErrorCode *start_ble_scanning(void *param){
     int rssi;
     char uuid[LENGTH_OF_UUID];
     int time_start = get_system_time();
+	int lbeacon_index;
+	int best_index;
+	int best_rssi;
+	int num_LBeacons = -1;
+	int associated_rssi = -100;
 
     memset(LBeacon, 0, sizeof(LBeacon));
-    index_LBeacon = -1;
 
 #ifdef Debugging
     zlog_debug(category_debug, ">> start_ble_scanning... ");
@@ -791,11 +795,11 @@ ErrorCode *start_ble_scanning(void *param){
                                    "Detected LBeacon  %s, uuid=[%s], rssi=%d",
                                    address, uuid, rssi);
 #endif
-                        int found_index = -1;
-                        for(int i = 0 ; i <= index_LBeacon ; i++){
+                        lbeacon_index = -1;
+                        for(int i = 0 ; i <= num_LBeacons ; i++){
                             if(0 == strncmp(LBeacon[i].uuid, uuid,
                                             LENGTH_OF_UUID)){
-                                found_index = i;
+                                lbeacon_index = i;
                                 LBeacon[i].avg_rssi =
                                     (LBeacon[i].avg_rssi *
                                      LBeacon[i].count + rssi) /
@@ -804,63 +808,69 @@ ErrorCode *start_ble_scanning(void *param){
                             }
                         }
 
-                        if(found_index == -1){
-                            index_LBeacon++;
-                            memcpy(LBeacon[index_LBeacon].uuid, uuid,
+                        if(lbeacon_index == -1){
+                            num_LBeacons++;
+                            memcpy(LBeacon[num_LBeacons].uuid, uuid,
                                    LENGTH_OF_UUID);
-                            LBeacon[index_LBeacon].avg_rssi = rssi;
-                            LBeacon[index_LBeacon].count = 1;
+                            LBeacon[num_LBeacons].avg_rssi = rssi;
+                            LBeacon[num_LBeacons].count = 1;
                         }
 					}
 				}
 			}
 
             if(get_system_time() - time_start > g_config.scan_timeout){
-
-                int best_rssi = -100;
-                int best_index = -1;
-                for(int i = 0 ; i <= index_LBeacon ; i++){
-                    if(LBeacon[i].avg_rssi > best_rssi){
-                        best_rssi = LBeacon[i].avg_rssi;
-                        best_index = i;
-                    }
-#ifdef Debugging
-                    zlog_debug(category_debug,
-                               "Scan timeout:  index=[%d], " \
-                               "lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
-                               i, LBeacon[i].uuid,
-                               LBeacon[i].avg_rssi,
-                               LBeacon[i].count);
-#endif
-                }
-				if(best_index == -1){
-					memset(lbeacon_uuid, 0, sizeof(lbeacon_uuid));
-					is_uuid_changed = 1;
-#ifdef Debugging
-                    zlog_debug(category_debug,
-                               "Not in LBeacon coverage scope, " \
-							   "release previous association");
-#endif
+                if(num_LBeacons != -1){
 					
-				}else if(0 != strncmp(LBeacon[best_index].uuid,
-                                      lbeacon_uuid,
-                                      LENGTH_OF_UUID)){
-                    memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
-                           LENGTH_OF_UUID);
-                    is_uuid_changed = 1;
+                    best_index = -1;
+                    best_rssi = -100;
+                    associated_rssi = -100;
+				
+                    for(int i = 0 ; i <= num_LBeacons ; i++){
+                        if(LBeacon[i].avg_rssi > best_rssi){
+                            best_rssi = LBeacon[i].avg_rssi;
+                            best_index = i;
+                        }
+						
 #ifdef Debugging
-                    zlog_debug(category_debug,
-                               "Change  lbeacon_uuid=[%s], " \
-                               "avg_rssi=%d, count=%d",
-                               lbeacon_uuid,
-                               LBeacon[best_index].avg_rssi,
-                               LBeacon[best_index].count);
+                        zlog_debug(category_debug,
+                                   "Scan timeout:  index=[%d], " \
+                                   "lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
+                                   i, LBeacon[i].uuid,
+                                   LBeacon[i].avg_rssi,
+                                   LBeacon[i].count);
 #endif
-                    break;
-                }
+                    }
+
+				    if(0 == strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
+				                    LENGTH_OF_UUID)){
+										
+						associated_rssi = LBeacon[best_index].avg_rssi;
+						
+				    }else if( > 
+					         LBeacon[best_index].avg_rssi*1.0/associated_rssi){
+						
+                        memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
+                               LENGTH_OF_UUID);
+                        associated_rssi = LBeacon[best_index].avg_rssi;
+						
+                        is_uuid_changed = 1;
+#ifdef Debugging
+                    
+                        zlog_debug(category_debug,
+                                   "Change  lbeacon_uuid=[%s], " \
+                                   "avg_rssi=%d, count=%d",
+                                   lbeacon_uuid,
+                                   LBeacon[best_index].avg_rssi,
+                                   LBeacon[best_index].count);
+#endif
+                        break;
+                    }
+				}
                 time_start = get_system_time();
                 memset(LBeacon, 0, sizeof(LBeacon));
-                index_LBeacon = -1;
+                num_LBeacons = -1;
+                associated_rssi = -100;
             }
              
         } // end while (HCI_EVENT_HDR_SIZE)
