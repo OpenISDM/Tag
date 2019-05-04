@@ -659,8 +659,7 @@ ErrorCode *start_ble_scanning(void *param){
 	int best_index;
 	int best_rssi;
 	int num_LBeacons = -1;
-	int associated_rssi = -100;
-
+	
     memset(LBeacon, 0, sizeof(LBeacon));
 
 #ifdef Debugging
@@ -824,8 +823,7 @@ ErrorCode *start_ble_scanning(void *param){
 					
                     best_index = -1;
                     best_rssi = -100;
-                    associated_rssi = -100;
-				
+                   
                     for(int i = 0 ; i <= num_LBeacons ; i++){
                         if(LBeacon[i].avg_rssi > best_rssi){
                             best_rssi = LBeacon[i].avg_rssi;
@@ -842,18 +840,12 @@ ErrorCode *start_ble_scanning(void *param){
 #endif
                     }
 
-				    if(0 == strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
+				    if(0 != strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
 				                    LENGTH_OF_UUID)){
-										
-						associated_rssi = LBeacon[best_index].avg_rssi;
-						
-				    }else if( > 
-					         LBeacon[best_index].avg_rssi*1.0/associated_rssi){
-						
+					
                         memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
                                LENGTH_OF_UUID);
-                        associated_rssi = LBeacon[best_index].avg_rssi;
-						
+                    	
                         is_uuid_changed = 1;
 #ifdef Debugging
                     
@@ -870,7 +862,6 @@ ErrorCode *start_ble_scanning(void *param){
                 time_start = get_system_time();
                 memset(LBeacon, 0, sizeof(LBeacon));
                 num_LBeacons = -1;
-                associated_rssi = -100;
             }
              
         } // end while (HCI_EVENT_HDR_SIZE)
