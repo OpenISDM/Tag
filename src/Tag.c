@@ -807,8 +807,7 @@ ErrorCode *start_ble_scanning(void *param){
                             }
                         }
 
-                        if(lbeacon_index == -1){
-                            num_LBeacons++;
+                        if(lbeacon_index == -1 && num_LBeacons++ < MAX_INDEX_OF_LBEACON_STRUCT){
                             memcpy(LBeacon[num_LBeacons].uuid, uuid,
                                    LENGTH_OF_UUID);
                             LBeacon[num_LBeacons].avg_rssi = rssi;

@@ -104,6 +104,9 @@ https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile
 /* Number of characters in a Bluetooth MAC address */
 #define LENGTH_OF_MAC_ADDRESS 18
 
+/* The maximum index of LBeacon struct for comparison signal strength */
+#define MAX_INDEX_OF_LBEACON_STRUCT 50
+
 /*
   TYPEDEF STRUCTS
 */
@@ -113,7 +116,7 @@ typedef struct LBeacon_data {
    int count;
 } LBeacon_data;
 
-LBeacon_data LBeacon[10];
+LBeacon_data LBeacon[MAX_INDEX_OF_LBEACON_STRUCT];
 int index_LBeacon = -1;
 
 /* The configuration file structure */
