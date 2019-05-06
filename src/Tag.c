@@ -804,6 +804,7 @@ ErrorCode *start_ble_scanning(void *param){
                                      LBeacon[i].count + rssi) /
                                     (LBeacon[i].count + 1);
                                 LBeacon[i].count++;
+								break;
                             }
                         }
 

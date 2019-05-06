@@ -160,7 +160,7 @@ extern int errno;
 /* Struct for storing config information from the input file */
 Config g_config;
 
-char lbeacon_uuid[40];
+char lbeacon_uuid[LENGTH_OF_UUID];
 
 int is_uuid_changed;
 //int prevent_bounce_count;
