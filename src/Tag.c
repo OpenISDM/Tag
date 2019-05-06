@@ -818,7 +818,7 @@ ErrorCode *start_ble_scanning(void *param){
 				}
 			}
 
-            if(get_system_time() - time_start > g_config.scan_timeout){
+            if(get_system_time() - time_start >= g_config.scan_timeout){
                 if(num_LBeacons != -1){
 					
                     best_index = -1;
