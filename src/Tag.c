@@ -599,10 +599,10 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
                 if (uuid_len > buf_len)
                        goto failed;
 
-                index = 0; 
+                index = 0;
                 // Ensure the Beacon is our LBeacon
                 if(eir[2] == 15 && eir[3] == 0 && eir[4] == 2 && eir[5] == 21){
-					
+
                     if(eir[6] ==0 && eir[7] == 0 && eir[8] ==0){
                         for(i = 6 ; i < 22 ; i++)
                         {
@@ -618,7 +618,7 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
 					return WORK_SUCCESSFULLY;
 				}
 				return E_PARSE_UUID;
-				
+
         }
 
 
@@ -655,11 +655,13 @@ ErrorCode *start_ble_scanning(void *param){
     int rssi;
     char uuid[LENGTH_OF_UUID];
     int time_start = get_system_time();
-	int lbeacon_index;
-	int best_index;
-	int best_rssi;
-	int num_LBeacons = -1;
-	
+    int lbeacon_index;
+    int best_index;
+    int best_rssi;
+    int num_LBeacons = -1;
+    bool keep_association = false;
+    int associated_index = -1;
+
     memset(LBeacon, 0, sizeof(LBeacon));
 
 #ifdef Debugging
@@ -788,6 +790,7 @@ ErrorCode *start_ble_scanning(void *param){
                                                        info->length,
                                                        uuid,
                                                        sizeof(uuid) - 1)){
+
                     if(0 == strncmp(uuid, "000000", 6)){
 #ifdef Debugging
                         zlog_debug(category_debug,
@@ -804,66 +807,91 @@ ErrorCode *start_ble_scanning(void *param){
                                      LBeacon[i].count + rssi) /
                                     (LBeacon[i].count + 1);
                                 LBeacon[i].count++;
-								break;
+                                break;
                             }
                         }
 
-                        if(lbeacon_index == -1 && num_LBeacons++ < MAX_INDEX_OF_LBEACON_STRUCT){
-                            memcpy(LBeacon[num_LBeacons].uuid, uuid,
+                        if(lbeacon_index == -1 &&
+                           num_LBeacons++ < MAX_INDEX_OF_LBEACON_STRUCT){
+
+                            lbeacon_index = num_LBeacons;
+                            memcpy(LBeacon[lbeacon_index].uuid, uuid,
                                    LENGTH_OF_UUID);
-                            LBeacon[num_LBeacons].avg_rssi = rssi;
-                            LBeacon[num_LBeacons].count = 1;
+                            LBeacon[lbeacon_index].avg_rssi = rssi;
+                            LBeacon[lbeacon_index].count = 1;
                         }
-					}
-				}
-			}
+
+                        if(0 == strncmp(LBeacon[lbeacon_index].uuid,
+                                        lbeacon_uuid, LENGTH_OF_UUID) &&
+                           abs(rssi - previous_associated_avg_rssi) < 5){
+
+                            associated_index = lbeacon_index;
+                            keep_association = true;
+                        }
+                    } // end of if lbeacon
+                } // end of if "C1" prefix
+            } // end of if rssi is higher than threshold
 
             if(get_system_time() - time_start >= g_config.scan_timeout){
                 if(num_LBeacons != -1){
-					
                     best_index = -1;
                     best_rssi = -100;
-                   
-                    for(int i = 0 ; i <= num_LBeacons ; i++){
-                        if(LBeacon[i].avg_rssi > best_rssi){
-                            best_rssi = LBeacon[i].avg_rssi;
-                            best_index = i;
-                        }
-						
-#ifdef Debugging
-                        zlog_debug(category_debug,
-                                   "Scan timeout:  index=[%d], " \
-                                   "lbeacon_uuid=[%s], avg_rssi=%d, count=%d",
-                                   i, LBeacon[i].uuid,
-                                   LBeacon[i].avg_rssi,
-                                   LBeacon[i].count);
-#endif
-                    }
 
-				    if(0 != strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
-				                    LENGTH_OF_UUID)){
-					
-                        memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
-                               LENGTH_OF_UUID);
-                    	
-                        is_uuid_changed = 1;
+                    if(keep_association){
+                        previous_associated_avg_rssi =
+                            LBeacon[associated_index].avg_rssi;
 #ifdef Debugging
-                    
                         zlog_debug(category_debug,
-                                   "Change  lbeacon_uuid=[%s], " \
-                                   "avg_rssi=%d, count=%d",
-                                   lbeacon_uuid,
-                                   LBeacon[best_index].avg_rssi,
-                                   LBeacon[best_index].count);
+                                   "Scan timeout:  keep association=[%s]",
+                                   lbeacon_uuid);
 #endif
-                        break;
-                    }
-				}
+                    }else{
+                        for(int i = 0 ; i <= num_LBeacons ; i++){
+                            if(LBeacon[i].avg_rssi > best_rssi){
+                                best_rssi = LBeacon[i].avg_rssi;
+                                best_index = i;
+                            }
+
+#ifdef Debugging
+                            zlog_debug(category_debug,
+                                       "Scan timeout:  index=[%d], " \
+                                       "lbeacon_uuid=[%s], avg_rssi=%d, "\
+                                       "count=%d",
+                                       i, LBeacon[i].uuid,
+                                       LBeacon[i].avg_rssi,
+                                       LBeacon[i].count);
+#endif
+                        }
+
+                        if(0 != strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
+                                        LENGTH_OF_UUID)){
+#ifdef Debugging
+                            zlog_debug(category_debug,
+                                       "Scan timeout:  change " \
+                                       "best uuid=[%s], " \
+                                       "avg_rssi=%d, count=%d",
+                                       LBeacon[best_index].uuid,
+                                       LBeacon[best_index].avg_rssi,
+                                       LBeacon[best_index].count);
+#endif
+                            memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
+                                   LENGTH_OF_UUID);
+
+                            is_uuid_changed = true;
+                            keep_association = false;
+                            previous_associated_avg_rssi =
+                                LBeacon[best_index].avg_rssi;
+
+                            break;
+                        }
+                    } // end of else
+                } // end of if
                 time_start = get_system_time();
                 memset(LBeacon, 0, sizeof(LBeacon));
                 num_LBeacons = -1;
+                keep_association = false;
             }
-             
+
         } // end while (HCI_EVENT_HDR_SIZE)
 
         if( 0> hci_le_set_scan_enable(socket, 0, 0,
@@ -897,6 +925,8 @@ int main(int argc, char **argv) {
 
     /*Initialize the global flag */
     ready_to_work = true;
+    memset(lbeacon_uuid, 0, sizeof(lbeacon_uuid));
+    previous_associated_avg_rssi = -100;
 
     /* Initialize the application log */
     if (zlog_init("../config/zlog.conf") == 0) {
@@ -963,10 +993,8 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    memset(lbeacon_uuid, 0, sizeof(lbeacon_uuid));
-
-     while(true == ready_to_work){
-        is_uuid_changed = 0;
+    while(true == ready_to_work){
+        is_uuid_changed = false;
 
         return_value = enable_advertising(g_config.advertise_dongle_id,
                                           INTERVAL_ADVERTISING_IN_MS,

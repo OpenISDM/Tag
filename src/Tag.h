@@ -160,10 +160,15 @@ extern int errno;
 /* Struct for storing config information from the input file */
 Config g_config;
 
+/* UUID of LBeacon inside payload of advertising packet */
 char lbeacon_uuid[LENGTH_OF_UUID];
 
-int is_uuid_changed;
-//int prevent_bounce_count;
+/* Global flag to specify if UUID of LBeacon is changed */
+bool is_uuid_changed;
+
+/* Global variable to record the running average of RSSI values in previous
+scan window */
+int previous_associated_avg_rssi;
 
 /*
   FUNCTIONS
