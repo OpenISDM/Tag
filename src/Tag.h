@@ -136,9 +136,6 @@ typedef struct Config {
     /* The criteria of changing associated lbeacon to another one */
     int change_lbeacon_rssi_criteria;
     
-    /* The reasonable rssi changes per second */
-    int rssi_movement_per_second;
-
 } Config;
 
 

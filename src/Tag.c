@@ -158,13 +158,6 @@ ErrorCode get_config(Config *config, char *file_name) {
     trim_string_tail(config_message);
     config->change_lbeacon_rssi_criteria = atoi(config_message);
     
-    /* item 6 */
-    fgets(config_setting, sizeof(config_setting), file);
-    config_message = strstr((char *)config_setting, DELIMITER);
-    config_message = config_message + strlen(DELIMITER);
-    trim_string_tail(config_message);
-    config->rssi_movement_per_second = atoi(config_message);
-
     fclose(file);
 
     return WORK_SUCCESSFULLY;
@@ -850,13 +843,9 @@ ErrorCode *start_ble_scanning(void *param){
                     best_rssi = -100;
 
                     if(associated_index != -1 && 
-                       (LBeacon[associated_index].avg_rssi <= 
-                        previous_associated_avg_rssi || 
-                        LBeacon[associated_index].avg_rssi - 
-                        previous_associated_avg_rssi < 
-                        g_config.scan_timeout * 
-                        g_config.rssi_movement_per_second)){
-                        previous_associated_avg_rssi =
+                       LBeacon[associated_index].avg_rssi <= 
+                       previous_associated_avg_rssi){
+                       previous_associated_avg_rssi =
                             LBeacon[associated_index].avg_rssi;
 #ifdef Debugging
                         zlog_debug(category_debug,
