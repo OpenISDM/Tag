@@ -150,6 +150,20 @@ ErrorCode get_config(Config *config, char *file_name) {
     config_message = config_message + strlen(DELIMITER);
     trim_string_tail(config_message);
     config->scan_timeout = atoi(config_message);
+    
+    /* item 5 */
+    fgets(config_setting, sizeof(config_setting), file);
+    config_message = strstr((char *)config_setting, DELIMITER);
+    config_message = config_message + strlen(DELIMITER);
+    trim_string_tail(config_message);
+    config->change_lbeacon_rssi_criteria = atoi(config_message);
+    
+    /* item 6 */
+    fgets(config_setting, sizeof(config_setting), file);
+    config_message = strstr((char *)config_setting, DELIMITER);
+    config_message = config_message + strlen(DELIMITER);
+    trim_string_tail(config_message);
+    config->rssi_movement_per_second = atoi(config_message);
 
     fclose(file);
 
@@ -659,7 +673,6 @@ ErrorCode *start_ble_scanning(void *param){
     int best_index;
     int best_rssi;
     int num_LBeacons = -1;
-    bool keep_association = false;
     int associated_index = -1;
 
     memset(LBeacon, 0, sizeof(LBeacon));
@@ -821,12 +834,11 @@ ErrorCode *start_ble_scanning(void *param){
                             LBeacon[lbeacon_index].count = 1;
                         }
 
-                        if(0 == strncmp(LBeacon[lbeacon_index].uuid,
-                                        lbeacon_uuid, LENGTH_OF_UUID) &&
-                           abs(rssi - previous_associated_avg_rssi) < 5){
+                        if(associated_index == -1 && 
+                            0 == strncmp(LBeacon[lbeacon_index].uuid,
+                                         lbeacon_uuid, LENGTH_OF_UUID)){
 
                             associated_index = lbeacon_index;
-                            keep_association = true;
                         }
                     } // end of if lbeacon
                 } // end of if "C1" prefix
@@ -837,13 +849,19 @@ ErrorCode *start_ble_scanning(void *param){
                     best_index = -1;
                     best_rssi = -100;
 
-                    if(keep_association){
+                    if(associated_index != -1 && 
+                       (LBeacon[associated_index].avg_rssi <= 
+                        previous_associated_avg_rssi || 
+                        LBeacon[associated_index].avg_rssi - 
+                        previous_associated_avg_rssi < 
+                        g_config.scan_timeout * 
+                        g_config.rssi_movement_per_second)){
                         previous_associated_avg_rssi =
                             LBeacon[associated_index].avg_rssi;
 #ifdef Debugging
                         zlog_debug(category_debug,
-                                   "Scan timeout:  keep association=[%s]",
-                                   lbeacon_uuid);
+                                   "Scan timeout:  keep association=[%s] rssi=%d",
+                                   lbeacon_uuid, LBeacon[associated_index].avg_rssi);
 #endif
                     }else{
                         for(int i = 0 ; i <= num_LBeacons ; i++){
@@ -863,8 +881,12 @@ ErrorCode *start_ble_scanning(void *param){
 #endif
                         }
 
-                        if(0 != strncmp(lbeacon_uuid, LBeacon[best_index].uuid,
-                                        LENGTH_OF_UUID)){
+                        if(associated_index == -1 || 
+                           (associated_index != -1 && 
+                            best_index != associated_index && 
+                            LBeacon[best_index].avg_rssi - 
+                            LBeacon[associated_index].avg_rssi > 
+                            g_config.change_lbeacon_rssi_criteria)){
 #ifdef Debugging
                             zlog_debug(category_debug,
                                        "Scan timeout:  change " \
@@ -877,8 +899,7 @@ ErrorCode *start_ble_scanning(void *param){
                             memcpy(lbeacon_uuid, LBeacon[best_index].uuid,
                                    LENGTH_OF_UUID);
 
-                            is_uuid_changed = true;
-                            keep_association = false;
+                            is_lbeacon_changed = true;
                             previous_associated_avg_rssi =
                                 LBeacon[best_index].avg_rssi;
 
@@ -889,7 +910,7 @@ ErrorCode *start_ble_scanning(void *param){
                 time_start = get_system_time();
                 memset(LBeacon, 0, sizeof(LBeacon));
                 num_LBeacons = -1;
-                keep_association = false;
+                associated_index = -1;
             }
 
         } // end while (HCI_EVENT_HDR_SIZE)
@@ -907,7 +928,7 @@ ErrorCode *start_ble_scanning(void *param){
 
         hci_close_dev(socket);
 
-        if(is_uuid_changed){
+        if(is_lbeacon_changed){
             break;
         }
     }
@@ -994,7 +1015,7 @@ int main(int argc, char **argv) {
     }
 
     while(true == ready_to_work){
-        is_uuid_changed = false;
+        is_lbeacon_changed = false;
 
         return_value = enable_advertising(g_config.advertise_dongle_id,
                                           INTERVAL_ADVERTISING_IN_MS,

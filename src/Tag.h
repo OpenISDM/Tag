@@ -132,6 +132,12 @@ typedef struct Config {
 
     /* The time window */
     int scan_timeout;
+    
+    /* The criteria of changing associated lbeacon to another one */
+    int change_lbeacon_rssi_criteria;
+    
+    /* The reasonable rssi changes per second */
+    int rssi_movement_per_second;
 
 } Config;
 
@@ -164,7 +170,7 @@ Config g_config;
 char lbeacon_uuid[LENGTH_OF_UUID];
 
 /* Global flag to specify if UUID of LBeacon is changed */
-bool is_uuid_changed;
+bool is_lbeacon_changed;
 
 /* Global variable to record the running average of RSSI values in previous
 scan window */
