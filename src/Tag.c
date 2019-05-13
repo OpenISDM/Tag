@@ -150,14 +150,14 @@ ErrorCode get_config(Config *config, char *file_name) {
     config_message = config_message + strlen(DELIMITER);
     trim_string_tail(config_message);
     config->scan_timeout = atoi(config_message);
-    
+
     /* item 5 */
     fgets(config_setting, sizeof(config_setting), file);
     config_message = strstr((char *)config_setting, DELIMITER);
     config_message = config_message + strlen(DELIMITER);
     trim_string_tail(config_message);
     config->change_lbeacon_rssi_criteria = atoi(config_message);
-    
+
     fclose(file);
 
     return WORK_SUCCESSFULLY;
@@ -827,7 +827,7 @@ ErrorCode *start_ble_scanning(void *param){
                             LBeacon[lbeacon_index].count = 1;
                         }
 
-                        if(associated_index == -1 && 
+                        if(associated_index == -1 &&
                             0 == strncmp(LBeacon[lbeacon_index].uuid,
                                          lbeacon_uuid, LENGTH_OF_UUID)){
 
@@ -842,8 +842,8 @@ ErrorCode *start_ble_scanning(void *param){
                     best_index = -1;
                     best_rssi = -100;
 
-                    if(associated_index != -1 && 
-                       LBeacon[associated_index].avg_rssi <= 
+                    if(associated_index != -1 &&
+                       LBeacon[associated_index].avg_rssi <=
                        previous_associated_avg_rssi){
                        previous_associated_avg_rssi =
                             LBeacon[associated_index].avg_rssi;
@@ -870,11 +870,11 @@ ErrorCode *start_ble_scanning(void *param){
 #endif
                         }
 
-                        if(associated_index == -1 || 
-                           (associated_index != -1 && 
-                            best_index != associated_index && 
-                            LBeacon[best_index].avg_rssi - 
-                            LBeacon[associated_index].avg_rssi > 
+                        if(associated_index == -1 ||
+                           (associated_index != -1 &&
+                            best_index != associated_index &&
+                            LBeacon[best_index].avg_rssi -
+                            LBeacon[associated_index].avg_rssi >
                             g_config.change_lbeacon_rssi_criteria)){
 #ifdef Debugging
                             zlog_debug(category_debug,
@@ -1009,8 +1009,8 @@ int main(int argc, char **argv) {
         return_value = enable_advertising(g_config.advertise_dongle_id,
                                           INTERVAL_ADVERTISING_IN_MS,
                                           lbeacon_uuid,
-                                          LBEACON_MAJOR_VER,
-                                          LBEACON_MINOR_VER,
+                                          MAJOR_VER,
+                                          MINOR_VER,
                                           g_config.advertise_rssi_value);
         void *param;
         start_ble_scanning(param);
