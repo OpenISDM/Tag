@@ -178,8 +178,11 @@ ErrorCode enable_advertising(int dongle_device_id,
     struct hci_request request;
     int return_value = 0;
     uint8_t segment_length = 1;
-    unsigned int *uuid = NULL;
+    unsigned int *xy_coordinates = NULL;
     int uuid_iterator;
+    char uuid_identifier[17];
+    int index = 0;
+    int i;
 
 #ifdef Debugging
     zlog_info(category_debug, "Using dongle id [%d] uuid [%s]\n", dongle_device_id, advertising_uuid);
@@ -311,7 +314,7 @@ ErrorCode enable_advertising(int dongle_device_id,
     */
     advertisement_data_copy
         .data[advertisement_data_copy.length + segment_length] =
-        htobs(0x1A);
+        htobs(0x04);
     segment_length++;
 
     /* Fill the length for EIR_FLAGS type (0x01 in Bluetooth AD type) */
@@ -346,68 +349,36 @@ ErrorCode enable_advertising(int dongle_device_id,
         htobs(0x00);
     segment_length++;
 
-    /* The next byte is Subtype. For beacon-like, we should use 0x02 for iBeacon
-    type.
+    /* 8 bytes: LBeacon UUID identifier.
+    4 bytes for X coordinate and 4 bytes for Y coordinate.
     */
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(0x02);
-    segment_length++;
-
-    /* The next byte is the Subtype length of following beacon-like information.
-    They are pre-defined and fixed as 0x15 = 21 bytes with following format:
-
-    16 bytes: Proximity UUID
-    2 bytes: Major version
-    2 bytes: Minor version
-    1 byte: Signal power
-    */
-
-    /* Subtype length is pre-defined and fixed as 0x15 for beacon-like
-    information*/
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(0x15);
-    segment_length++;
-
-    /* 16 bytes: Proximity UUID */
-    uuid = uuid_str_to_data(advertising_uuid);
+    memset(uuid_identifier, 0, sizeof(uuid_identifier));
+    for(i  = 12 ; i < 20 ; i++){
+        uuid_identifier[index] = *(advertising_uuid+i);
+        index++;
+    }
+    for(i = 24 ; i < 32 ; i++){
+        uuid_identifier[index] = *(advertising_uuid+i);
+        index++;
+    }
+    xy_coordinates = uuid_str_to_data(uuid_identifier);
 
     for (uuid_iterator = 0;
-         uuid_iterator < strlen(advertising_uuid) / 2;
+         uuid_iterator < strlen(uuid_identifier) / 2;
          uuid_iterator++) {
 
         advertisement_data_copy
             .data[advertisement_data_copy.length + segment_length] =
-            htobs(uuid[uuid_iterator]);
+            htobs(xy_coordinates[uuid_iterator]);
 
         segment_length++;
     }
 
-    /* 2 bytes: Major number */
+    /* 1 bytes: Push-button information */
+    int is_button_pressed = 0;
     advertisement_data_copy
         .data[advertisement_data_copy.length + segment_length] =
-        htobs(major_number >> 8 & 0x00FF);
-    segment_length++;
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(major_number & 0x00FF);
-    segment_length++;
-
-    /* 2 bytes: Minor number */
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(minor_number >> 8 & 0x00FF);
-    segment_length++;
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(minor_number & 0x00FF);
-    segment_length++;
-
-    /* 1 byte: Signal power (also known as RSSI calibration) */
-    advertisement_data_copy
-        .data[advertisement_data_copy.length + segment_length] =
-        htobs(twoc(rssi_value, 8));
+        htobs(is_button_pressed & 0x00FF);
     segment_length++;
 
     /* Fill the length for EIR_MANUFACTURE_SPECIFIC_DATA type
