@@ -579,26 +579,31 @@ static ErrorCode eir_parse_uuid(uint8_t *eir,
 
                 index = 0;
                 // Ensure the Beacon is our LBeacon
-                if(eir[2] == 15 && eir[3] == 0 && eir[4] == 2 && eir[5] == 21){
-
-                    if(eir[6] ==0 && eir[7] == 0 && eir[8] ==0){
-                        for(i = 6 ; i < 22 ; i++)
-                        {
-                            buf[index] = eir[i] / 16 + '0';
-                            buf[index+1] = eir[i] % 16 + '0';
-                            index=index+2;
+                // Broafcom Corporation is 0x000F, so the 
+                // eir[2] is 0x0F and eir[3] is 0x00
+                if(eir[2] == 15 && eir[3] == 0){
+                    // Beacon-like is 0x02 with length as 0x15, so the 
+                    // eir[4] is 0x02 and eir[5] is 0x15
+                    if(eir[4] == 2 && eir[5] == 21){
+                        // LBeacon UUID format has six leading 0, so the 
+                        // eir[6], eir[7] and eir[8] are all 0x00
+                        if(eir[6] ==0 && eir[7] == 0 && eir[8] ==0){
+                            for(i = 6 ; i < 22 ; i++)
+                            {
+                                buf[index] = eir[i] / 16 + '0';
+                                buf[index+1] = eir[i] % 16 + '0';
+                                index=index+2;
+                            }
+                            buf[index] = '\0';
+                            has_uuid = true;
                         }
-                        buf[index] = '\0';
-						has_uuid = true;
-					}
+                    }
                 }
-				if(has_uuid){
-					return WORK_SUCCESSFULLY;
-				}
-				return E_PARSE_UUID;
-
+                if(has_uuid){
+                    return WORK_SUCCESSFULLY;
+                }
+                return E_PARSE_UUID;
         }
-
 
         offset += field_len + 1;
         eir += field_len + 1;
@@ -762,8 +767,7 @@ ErrorCode *start_ble_scanning(void *param){
 
                 memset(uuid, 0, sizeof(uuid));
 
-                if(0 != strncmp(address, "C1:", 3) &&
-                   WORK_SUCCESSFULLY == eir_parse_uuid(info->data,
+                if(WORK_SUCCESSFULLY == eir_parse_uuid(info->data,
                                                        info->length,
                                                        uuid,
                                                        sizeof(uuid) - 1)){
